@@ -1,0 +1,996 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>税智中枢｜费用审核知识图谱</title>
+  <style>
+    :root {
+      --ink: #17233b;
+      --muted: #70809a;
+      --line: #dce4ef;
+      --panel: #ffffff;
+      --canvas: #f5f7fb;
+      --navy: #102a43;
+      --blue: #2f6bff;
+      --blue-soft: #eaf1ff;
+      --purple: #7657e8;
+      --purple-soft: #f0ecff;
+      --green: #00a884;
+      --green-soft: #e6f8f3;
+      --orange: #f59e0b;
+      --orange-soft: #fff6df;
+      --red: #e05252;
+      --red-soft: #feeeee;
+      --shadow: 0 12px 34px rgba(21, 42, 74, .10);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--canvas);
+      font-family: Inter, "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+    }
+    button, input { font: inherit; }
+
+    .kg-shell {
+      min-height: 100vh;
+      display: grid;
+      grid-template-rows: 76px auto 1fr;
+      background: var(--canvas);
+    }
+
+    .kg-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      padding: 0 26px;
+      color: #fff;
+      background: linear-gradient(105deg, #102a43 0%, #123a68 65%, #155092 100%);
+      box-shadow: 0 2px 12px rgba(16, 42, 67, .18);
+    }
+    .kg-brand { display: flex; align-items: center; gap: 14px; min-width: 0; }
+    .kg-brand-mark {
+      width: 42px; height: 42px; border-radius: 12px;
+      display: grid; place-items: center;
+      background: rgba(255,255,255,.14);
+      border: 1px solid rgba(255,255,255,.20);
+      font-size: 21px; font-weight: 800;
+    }
+    .kg-brand h1 { margin: 0; font-size: 20px; letter-spacing: .2px; }
+    .kg-brand p { margin: 5px 0 0; color: rgba(255,255,255,.68); font-size: 12px; }
+    .kg-header-meta { display: flex; gap: 18px; color: rgba(255,255,255,.78); font-size: 12px; white-space: nowrap; }
+    .kg-header-meta b { color: #fff; font-size: 16px; margin-right: 4px; }
+    .kg-db-status {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 7px 10px; border: 1px solid rgba(255,255,255,.16); border-radius: 999px;
+      background: rgba(255,255,255,.09); color: rgba(255,255,255,.82);
+    }
+    .kg-db-status::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: #ffd166; box-shadow: 0 0 0 3px rgba(255,209,102,.15); }
+    .kg-db-status.is-online::before { background: #45e0b7; box-shadow: 0 0 0 3px rgba(69,224,183,.15); }
+    .kg-db-status.is-offline::before { background: #ff8b8b; box-shadow: 0 0 0 3px rgba(255,139,139,.15); }
+
+    .kg-toolbar {
+      display: grid;
+      grid-template-columns: minmax(260px, 1fr) auto auto;
+      gap: 16px;
+      align-items: center;
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255,255,255,.92);
+      backdrop-filter: blur(12px);
+    }
+    .kg-search-wrap { position: relative; max-width: 560px; }
+    .kg-search-wrap::before {
+      content: "⌕"; position: absolute; left: 13px; top: 7px;
+      color: var(--muted); font-size: 21px; pointer-events: none;
+    }
+    .kg-search {
+      width: 100%; height: 40px; padding: 0 38px 0 39px;
+      border: 1px solid var(--line); border-radius: 11px; outline: none;
+      color: var(--ink); background: #f9fbfe;
+      transition: .18s ease;
+    }
+    .kg-search:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(47,107,255,.11); background: #fff; }
+    .kg-search-clear {
+      position: absolute; right: 8px; top: 7px; width: 26px; height: 26px;
+      border: 0; background: transparent; color: var(--muted); cursor: pointer;
+    }
+    .kg-modes, .kg-actions { display: flex; gap: 8px; align-items: center; }
+    .kg-mode, .kg-action {
+      height: 36px; padding: 0 13px; border-radius: 9px; cursor: pointer;
+      border: 1px solid var(--line); color: #4c5a70; background: #fff;
+      transition: .16s ease; white-space: nowrap;
+    }
+    .kg-mode:hover, .kg-action:hover { border-color: #b5c4d8; color: var(--ink); }
+    .kg-mode[aria-pressed="true"] { color: #fff; border-color: var(--blue); background: var(--blue); box-shadow: 0 5px 14px rgba(47,107,255,.22); }
+    .kg-action.primary { color: #fff; border-color: var(--blue); background: var(--blue); }
+
+    .kg-main {
+      min-height: 650px;
+      display: grid;
+      grid-template-columns: 250px minmax(520px, 1fr) 330px;
+      gap: 14px;
+      padding: 14px;
+    }
+    .kg-panel {
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      background: var(--panel);
+      box-shadow: 0 8px 25px rgba(21,42,74,.055);
+    }
+    .kg-panel-title {
+      display: flex; align-items: center; justify-content: space-between;
+      min-height: 52px; padding: 0 17px;
+      border-bottom: 1px solid #e8edf4;
+    }
+    .kg-panel-title h2 { margin: 0; font-size: 15px; }
+    .kg-panel-title span { color: var(--muted); font-size: 12px; }
+
+    .kg-filter-section { padding: 15px 16px; border-bottom: 1px solid #edf1f6; }
+    .kg-filter-section h3 { margin: 0 0 12px; color: #536176; font-size: 12px; letter-spacing: .3px; }
+    .kg-layer-option {
+      display: grid; grid-template-columns: 28px 1fr auto;
+      align-items: center; gap: 9px; padding: 8px 0; cursor: pointer;
+    }
+    .kg-layer-option input { position: absolute; opacity: 0; }
+    .kg-layer-code {
+      width: 27px; height: 27px; display: grid; place-items: center;
+      border-radius: 8px; color: #fff; font-weight: 800; font-size: 12px;
+    }
+    .kg-layer-option[data-layer="D"] .kg-layer-code { background: var(--blue); }
+    .kg-layer-option[data-layer="R"] .kg-layer-code { background: var(--purple); }
+    .kg-layer-option[data-layer="E"] .kg-layer-code { background: var(--green); }
+    .kg-layer-name b { display: block; font-size: 13px; }
+    .kg-layer-name small { color: var(--muted); font-size: 11px; }
+    .kg-layer-check {
+      width: 18px; height: 18px; border-radius: 5px;
+      border: 1px solid #c8d3e1; background: #fff;
+      display: grid; place-items: center; color: transparent; font-size: 12px;
+    }
+    .kg-layer-option input:checked ~ .kg-layer-check { color: #fff; border-color: var(--blue); background: var(--blue); }
+
+    .kg-legend { display: grid; gap: 10px; font-size: 12px; color: #556276; }
+    .kg-legend-row { display: flex; align-items: center; gap: 9px; }
+    .kg-node-sample { width: 18px; height: 18px; border: 3px solid var(--blue); border-radius: 50%; background: #fff; }
+    .kg-node-sample.instance { border-style: dashed; background: var(--orange-soft); border-color: var(--orange); }
+    .kg-edge-sample { width: 26px; height: 0; border-top: 2px solid #93a1b5; position: relative; }
+    .kg-edge-sample::after { content: ""; position: absolute; right: -1px; top: -4px; border-left: 6px solid #93a1b5; border-top: 3px solid transparent; border-bottom: 3px solid transparent; }
+
+    .kg-audit-box { padding: 15px 16px 17px; }
+    .kg-audit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+    .kg-field label { display: block; margin-bottom: 5px; color: var(--muted); font-size: 11px; }
+    .kg-field-input { position: relative; }
+    .kg-field-input input {
+      width: 100%; height: 36px; padding: 0 29px 0 10px;
+      border: 1px solid var(--line); border-radius: 8px; outline: none;
+      color: var(--ink); background: #fbfcfe;
+    }
+    .kg-field-input input:focus { border-color: var(--blue); }
+    .kg-field-input em { position: absolute; right: 9px; top: 9px; color: var(--muted); font-size: 11px; font-style: normal; }
+    .kg-run {
+      width: 100%; height: 38px; margin-top: 11px; border: 0; border-radius: 9px;
+      color: #fff; background: linear-gradient(100deg, #1769e0, #2f6bff);
+      cursor: pointer; font-weight: 700; box-shadow: 0 7px 16px rgba(47,107,255,.22);
+    }
+    .kg-result {
+      display: none; margin-top: 11px; padding: 10px 11px;
+      border-radius: 9px; font-size: 12px; line-height: 1.55;
+    }
+    .kg-result.fail { display: block; color: #a53838; background: var(--red-soft); border: 1px solid #f4caca; }
+    .kg-result.pass { display: block; color: #06775f; background: var(--green-soft); border: 1px solid #bfe8dd; }
+
+    .kg-canvas-panel { position: relative; min-height: 620px; }
+    .kg-canvas-head {
+      position: absolute; z-index: 4; left: 16px; top: 14px;
+      pointer-events: none;
+    }
+    .kg-canvas-head h2 { margin: 0; font-size: 16px; }
+    .kg-canvas-head p { margin: 5px 0 0; color: var(--muted); font-size: 11px; }
+    .kg-view-controls {
+      position: absolute; z-index: 5; right: 14px; top: 12px;
+      display: flex; gap: 6px;
+    }
+    .kg-icon-button {
+      width: 34px; height: 34px; border-radius: 9px; border: 1px solid var(--line);
+      color: #56657a; background: rgba(255,255,255,.95); cursor: pointer;
+      box-shadow: 0 4px 12px rgba(26,45,75,.08);
+    }
+    .kg-icon-button:hover { color: var(--blue); border-color: #b9c9df; }
+    .kg-graph { width: 100%; height: 100%; min-height: 620px; display: block; background:
+      radial-gradient(circle at 50% 50%, rgba(223,231,242,.55) 0 1px, transparent 1px) 0 0/22px 22px,
+      linear-gradient(#fbfcfe, #f6f8fc); }
+    .kg-hit-plane { fill: transparent; cursor: grab; }
+    .kg-hit-plane:active { cursor: grabbing; }
+    .kg-layer-band { opacity: .52; rx: 20px; }
+    .kg-band-label { font-size: 12px; font-weight: 800; letter-spacing: .4px; text-anchor: middle; }
+    .kg-link { stroke: #9aa8ba; stroke-width: 1.35; fill: none; opacity: .55; marker-end: url(#kg-arrow); transition: opacity .12s, stroke .12s, stroke-width .12s; }
+    .kg-link.is-hot { stroke: var(--orange); stroke-width: 3; opacity: 1; }
+    .kg-link.is-dim { opacity: .08; }
+    .kg-link-hit { stroke: transparent; stroke-width: 12; fill: none; cursor: pointer; }
+    .kg-link-label {
+      font-size: 9px; fill: #75849a; text-anchor: middle;
+      paint-order: stroke; stroke: rgba(255,255,255,.94); stroke-width: 3px; stroke-linejoin: round;
+      pointer-events: none; opacity: .78;
+    }
+    .kg-link-label.is-dim { opacity: .05; }
+    .kg-node { cursor: pointer; transition: opacity .12s; }
+    .kg-node.is-dim { opacity: .13; }
+    .kg-node.is-match .kg-node-ring { stroke-width: 5; filter: drop-shadow(0 4px 7px rgba(47,107,255,.25)); }
+    .kg-node.is-selected .kg-node-ring { stroke-width: 5; filter: drop-shadow(0 5px 9px rgba(21,42,74,.28)); }
+    .kg-node.is-hot .kg-node-ring { stroke: var(--orange); stroke-width: 5; }
+    .kg-node-ring { stroke-width: 3; transition: stroke-width .12s, stroke .12s; }
+    .kg-node.instance .kg-node-ring { stroke-dasharray: 5 3; }
+    .kg-node-code { fill: #fff; font-size: 12px; font-weight: 850; text-anchor: middle; pointer-events: none; }
+    .kg-node-label {
+      fill: var(--ink); font-size: 11px; font-weight: 700; text-anchor: middle; pointer-events: none;
+      paint-order: stroke; stroke: rgba(255,255,255,.96); stroke-width: 4px; stroke-linejoin: round;
+    }
+    .kg-node-type {
+      fill: #7a889b; font-size: 8px; text-anchor: middle; pointer-events: none;
+      paint-order: stroke; stroke: rgba(255,255,255,.96); stroke-width: 3px;
+    }
+    .kg-empty { display: none; position: absolute; inset: 0; place-items: center; color: var(--muted); font-size: 13px; pointer-events: none; }
+
+    .kg-detail { height: 100%; overflow: auto; }
+    .kg-detail-empty { padding: 34px 22px; text-align: center; color: var(--muted); }
+    .kg-detail-empty .kg-empty-icon {
+      width: 54px; height: 54px; margin: 0 auto 14px; border-radius: 16px;
+      display: grid; place-items: center; color: var(--blue); background: var(--blue-soft); font-size: 25px;
+    }
+    .kg-detail-body { display: none; }
+    .kg-detail-hero { padding: 18px 18px 16px; border-bottom: 1px solid #edf1f6; }
+    .kg-detail-eyebrow { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 11px; }
+    .kg-detail-chip { padding: 3px 7px; border-radius: 6px; color: #fff; font-weight: 800; }
+    .kg-detail-hero h2 { margin: 11px 0 5px; font-size: 18px; }
+    .kg-detail-id { color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; word-break: break-all; }
+    .kg-detail-desc { margin: 12px 0 0; color: #4f5d72; font-size: 13px; line-height: 1.65; }
+    .kg-detail-section { padding: 16px 18px; border-bottom: 1px solid #edf1f6; }
+    .kg-detail-section h3 { margin: 0 0 10px; color: #556378; font-size: 12px; }
+    .kg-prop-list { display: grid; gap: 8px; }
+    .kg-prop {
+      display: grid; grid-template-columns: 1fr auto; gap: 12px;
+      padding: 8px 9px; border-radius: 8px; background: #f7f9fc; font-size: 11px;
+    }
+    .kg-prop code { color: #335173; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .kg-prop span { color: var(--muted); text-align: right; }
+    .kg-connection { display: grid; grid-template-columns: 1fr auto; gap: 8px; padding: 8px 0; border-bottom: 1px dashed #e1e7f0; font-size: 11px; }
+    .kg-connection:last-child { border-bottom: 0; }
+    .kg-connection b { color: #40516a; font-weight: 650; }
+    .kg-connection span { color: var(--muted); }
+
+    .kg-status-line {
+      position: absolute; z-index: 4; left: 14px; bottom: 12px;
+      display: flex; align-items: center; gap: 8px; padding: 7px 10px;
+      border: 1px solid rgba(207,217,230,.9); border-radius: 8px;
+      color: #68778c; background: rgba(255,255,255,.90); font-size: 10px;
+      pointer-events: none;
+    }
+    .kg-status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 4px rgba(0,168,132,.12); }
+
+    @media (max-width: 1180px) {
+      .kg-main { grid-template-columns: 220px minmax(480px,1fr); }
+      .kg-main > .kg-panel:last-child { display: none; }
+    }
+    @media (max-width: 860px) {
+      .kg-shell { grid-template-rows: auto auto 1fr; }
+      .kg-header { padding: 16px 18px; }
+      .kg-header-meta { display: none; }
+      .kg-toolbar { grid-template-columns: 1fr; }
+      .kg-modes, .kg-actions { flex-wrap: wrap; }
+      .kg-main { grid-template-columns: 1fr; }
+      .kg-main > .kg-panel:first-child { display: none; }
+      .kg-canvas-panel, .kg-graph { min-height: 680px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="kg-shell">
+    <header class="kg-header">
+      <div class="kg-brand">
+        <div class="kg-brand-mark">财</div>
+        <div>
+          <h1>税智中枢 · 费用审核知识图谱</h1>
+          <p>本体模式、规则治理、业务实例与人工审核闭环</p>
+        </div>
+      </div>
+      <div class="kg-header-meta">
+        <span id="kg-db-status" class="kg-db-status" title="正在读取图数据库">Neo4j 连接中</span>
+        <span><b id="kg-total-nodes">27</b>对象</span>
+        <span><b id="kg-total-links">34</b>关系</span>
+        <span><b>3</b>D/R/E层</span>
+      </div>
+    </header>
+
+    <section class="kg-toolbar" aria-label="知识图谱工具栏">
+      <div class="kg-search-wrap">
+        <input id="kg-search" class="kg-search" type="search" placeholder="搜索对象、规则、字段或关系，例如：业务招待费 / Finding" autocomplete="off">
+        <button id="kg-search-clear" class="kg-search-clear" type="button" title="清空搜索">×</button>
+      </div>
+      <div class="kg-modes" role="group" aria-label="视图模式">
+        <button class="kg-mode" type="button" data-view="schema" aria-pressed="true">本体模式</button>
+        <button class="kg-mode" type="button" data-view="case" aria-pressed="false">600/500 实例</button>
+        <button class="kg-mode" type="button" data-view="combined" aria-pressed="false">联合视图</button>
+      </div>
+      <div class="kg-actions">
+        <button id="kg-fit" class="kg-action" type="button">适配画布</button>
+        <button id="kg-reset" class="kg-action primary" type="button">自动布局</button>
+      </div>
+    </section>
+
+    <main class="kg-main">
+      <aside class="kg-panel">
+        <div class="kg-panel-title"><h2>图谱图层</h2><span>筛选</span></div>
+        <section class="kg-filter-section">
+          <h3>对象层级</h3>
+          <label class="kg-layer-option" data-layer="D">
+            <input type="checkbox" value="D" checked>
+            <span class="kg-layer-code">D</span>
+            <span class="kg-layer-name"><b>业务事实层</b><small>单据、发票、申请与主数据</small></span>
+            <span class="kg-layer-check">✓</span>
+          </label>
+          <label class="kg-layer-option" data-layer="R">
+            <input type="checkbox" value="R" checked>
+            <span class="kg-layer-code">R</span>
+            <span class="kg-layer-name"><b>规则治理层</b><small>规则、标准、制度与证据要求</small></span>
+            <span class="kg-layer-check">✓</span>
+          </label>
+          <label class="kg-layer-option" data-layer="E">
+            <input type="checkbox" value="E" checked>
+            <span class="kg-layer-code">E</span>
+            <span class="kg-layer-name"><b>审核执行层</b><small>执行、发现、复核与决策</small></span>
+            <span class="kg-layer-check">✓</span>
+          </label>
+        </section>
+
+        <section class="kg-filter-section">
+          <h3>图例</h3>
+          <div class="kg-legend">
+            <div class="kg-legend-row"><span class="kg-node-sample"></span><span>本体对象 / Class</span></div>
+            <div class="kg-legend-row"><span class="kg-node-sample instance"></span><span>业务实例 / Individual</span></div>
+            <div class="kg-legend-row"><span class="kg-edge-sample"></span><span>语义关系 / Relation</span></div>
+          </div>
+        </section>
+
+        <section class="kg-audit-box">
+          <h3 style="margin:0 0 12px;font-size:12px;color:#536176;">最小审核场景</h3>
+          <div class="kg-audit-grid">
+            <div class="kg-field">
+              <label for="kg-claim-amount">申请金额</label>
+              <div class="kg-field-input"><input id="kg-claim-amount" type="number" min="0" step="0.01" value="600"><em>元</em></div>
+            </div>
+            <div class="kg-field">
+              <label for="kg-standard-amount">公司标准</label>
+              <div class="kg-field-input"><input id="kg-standard-amount" type="number" min="0" step="0.01" value="500"><em>元</em></div>
+            </div>
+          </div>
+          <button id="kg-run-audit" class="kg-run" type="button">运行费用审核</button>
+          <div id="kg-audit-result" class="kg-result" role="status" aria-live="polite"></div>
+        </section>
+      </aside>
+
+      <section class="kg-panel kg-canvas-panel">
+        <div class="kg-canvas-head">
+          <h2 id="kg-view-title">费用审核本体模式图</h2>
+          <p id="kg-view-subtitle">拖拽节点 · 滚轮缩放 · 点击查看对象字段与关系</p>
+        </div>
+        <div class="kg-view-controls">
+          <button id="kg-zoom-in" class="kg-icon-button" type="button" title="放大">＋</button>
+          <button id="kg-zoom-out" class="kg-icon-button" type="button" title="缩小">－</button>
+          <button id="kg-release" class="kg-icon-button" type="button" title="释放固定节点">↻</button>
+        </div>
+        <svg id="kg-graph" class="kg-graph" role="img" aria-label="费用审核知识图谱">
+          <defs>
+            <marker id="kg-arrow" viewBox="0 -5 10 10" refX="24" refY="0" markerWidth="6" markerHeight="6" orient="auto">
+              <path d="M0,-4L9,0L0,4" fill="#94a3b8"></path>
+            </marker>
+          </defs>
+          <rect class="kg-hit-plane" width="100%" height="100%"></rect>
+          <g id="kg-viewport">
+            <g id="kg-bands"></g>
+            <g id="kg-links"></g>
+            <g id="kg-link-labels"></g>
+            <g id="kg-nodes"></g>
+          </g>
+        </svg>
+        <div id="kg-empty" class="kg-empty">当前筛选条件下没有可显示的节点</div>
+        <div class="kg-status-line"><span class="kg-status-dot"></span><span id="kg-status-text">模式图已加载</span></div>
+      </section>
+
+      <aside class="kg-panel kg-detail">
+        <div class="kg-panel-title"><h2>对象详情</h2><span id="kg-detail-kind">未选择</span></div>
+        <div id="kg-detail-empty" class="kg-detail-empty">
+          <div class="kg-empty-icon">◎</div>
+          <b>选择一个对象或关系</b>
+          <p style="font-size:12px;line-height:1.7;">查看它的业务定义、关键字段、相邻关系和运行时含义。</p>
+        </div>
+        <div id="kg-detail-body" class="kg-detail-body">
+          <div class="kg-detail-hero">
+            <div class="kg-detail-eyebrow"><span id="kg-detail-chip" class="kg-detail-chip">D</span><span id="kg-detail-category">业务事实对象</span></div>
+            <h2 id="kg-detail-title"></h2>
+            <div id="kg-detail-id" class="kg-detail-id"></div>
+            <p id="kg-detail-desc" class="kg-detail-desc"></p>
+          </div>
+          <section class="kg-detail-section">
+            <h3>关键字段</h3>
+            <div id="kg-detail-fields" class="kg-prop-list"></div>
+          </section>
+          <section class="kg-detail-section">
+            <h3>相邻关系</h3>
+            <div id="kg-detail-links"></div>
+          </section>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <script>
+    (() => {
+      const layerInfo = {
+        D: { name: '业务事实对象', color: '#2f6bff', soft: '#eaf1ff' },
+        R: { name: '规则治理对象', color: '#7657e8', soft: '#f0ecff' },
+        E: { name: '审核执行对象', color: '#00a884', soft: '#e6f8f3' }
+      };
+
+      const schemaNodes = [
+        { id:'ExpenseReport', label:'费用报销单', layer:'D', kind:'class', desc:'员工提交并经过审批、财务审核和付款的报销单据，是一次费用审核的业务入口。', fields:[['reportNo','STRING · 唯一'],['submitDate','DATETIME'],['expenseTotalMinor','INTEGER · 分'],['approvedTotalMinor','INTEGER · 分'],['paymentAmountMinor','INTEGER · 分'],['currencyCode','STRING']] },
+        { id:'ExpenseLine', label:'费用明细', layer:'D', kind:'class', desc:'报销单内可独立分类、取证和执行规则的最小费用单元。', fields:[['lineNo','INTEGER'],['expenseDate','DATE'],['claimedAmountMinor','INTEGER · 分'],['approvedAmountMinor','INTEGER · 分'],['description','STRING']] },
+        { id:'ExpenseCategory', label:'费用分类', layer:'D', kind:'class', desc:'业务一级分类和二级分类，用于选择适用规则、制度、发票和附件要求。', fields:[['categoryCode','STRING · 唯一'],['categoryName','STRING'],['categoryLevel','INTEGER'],['status','ENUM']] },
+        { id:'Employee', label:'员工', layer:'D', kind:'class', desc:'报销人、出差人、经办人、受益人或审批人。敏感信息应采用令牌或受限存储。', fields:[['employeeNo','STRING'],['employeeName','STRING · 敏感'],['employmentStatus','ENUM'],['gradeCode','STRING']] },
+        { id:'HospitalityApplication', label:'招待申请', layer:'D', kind:'class', desc:'业务招待发生前审批的对象、人数、日期、地点和预算，是招待费时效与标准审核依据。', fields:[['applicationNo','STRING'],['expectedDate','DATE'],['guestCount','INTEGER'],['approvedAmountMinor','INTEGER · 分']] },
+        { id:'Invoice', label:'发票/合法票据', layer:'D', kind:'class', desc:'税务发票、财政收据或境外票据，用于合法性、抬头、金额、内容、重复和抵扣审核。', fields:[['invoiceNo','STRING'],['invoiceType','ENUM'],['issueDate','DATE'],['totalAmountMinor','INTEGER · 分'],['authenticityStatus','ENUM']] },
+        { id:'Attachment', label:'附件', layer:'D', kind:'class', desc:'合同、清单、验收单、支付记录和审批表等电子或纸质证据。', fields:[['documentTypeCode','STRING'],['mediaType','STRING'],['physicalForm','ENUM'],['contentHash','STRING']] },
+        { id:'EvidenceBundle', label:'证据包', layer:'D', kind:'class', desc:'一次审核中用于证明真实性与合规性的发票、附件和外部核验结果集合。', fields:[['bundleId','STRING'],['status','ENUM'],['snapshotHash','STRING']] },
+        { id:'LegalEntity', label:'法人主体', layer:'D', kind:'class', desc:'发票购买方、合同签约方和付款主体对应的法人公司。', fields:[['legalEntityCode','STRING'],['legalName','STRING'],['taxNo','STRING']] },
+        { id:'ApprovalFlow', label:'审批流程', layer:'D', kind:'class', desc:'报销业务的审批路径实例，用于判断流程走向、授权范围和加签完整性。', fields:[['flowId','STRING'],['flowStatus','ENUM'],['startedAt','DATETIME'],['completedAt','DATETIME']] },
+        { id:'PaymentRequest', label:'付款申请', layer:'D', kind:'class', desc:'报销、对公付款或预付款形成的付款请求。', fields:[['requestAmountMinor','INTEGER · 分'],['currencyCode','STRING'],['paymentMethod','ENUM'],['status','ENUM']] },
+        { id:'Payee', label:'收款方', layer:'D', kind:'class', desc:'本次支付的最终收款个人或组织，用于校验第三方转交和账户一致性。', fields:[['payeeId','STRING'],['payeeName','STRING'],['payeeType','ENUM'],['verificationStatus','ENUM']] },
+
+        { id:'AuditRuleDefinition', label:'审核规则定义', layer:'R', kind:'class', desc:'可版本化、可执行、可解释的审核规则；注册表负责治理，规则JSON快照负责运行。', fields:[['ruleCode','STRING'],['version','STRING'],['ruleType','ENUM'],['controlMode','ENUM'],['riskLevel','ENUM'],['conditionDsl','STRING/REF']] },
+        { id:'ThresholdStandard', label:'费用标准', layer:'R', kind:'class', desc:'按费用分类、职级、地点或期间定义的金额、数量或比例阈值。', fields:[['standardCode','STRING'],['limitAmountMinor','INTEGER · 分'],['operator','ENUM'],['unit','STRING'],['effectiveFrom','DATE'],['effectiveTo','DATE']] },
+        { id:'RuleSet', label:'规则集', layer:'R', kind:'class', desc:'按业务域、法人、场景和发布批次组织的一组规则，是智能体选择和编排单元。', fields:[['ruleSetCode','STRING'],['version','STRING'],['status','ENUM'],['effectiveFrom','DATE']] },
+        { id:'PolicyDocument', label:'制度文件', layer:'R', kind:'class', desc:'企业制度、操作手册或外部法规的受控文档，为规则和智能体问答提供依据。', fields:[['policyId','STRING'],['title','STRING'],['version','STRING'],['effectiveFrom','DATE'],['effectiveTo','DATE']] },
+        { id:'PolicyClause', label:'制度条款', layer:'R', kind:'class', desc:'制度文件中可以被规则精确引用的条款或知识片段。', fields:[['clauseId','STRING'],['clauseNo','STRING'],['clauseText','STRING'],['status','ENUM']] },
+        { id:'EvidenceRequirement', label:'证据要求', layer:'R', kind:'class', desc:'规则执行必须获取的发票、附件、业务字段或外部核验结果。', fields:[['requirementId','STRING'],['evidenceType','ENUM'],['required','BOOLEAN'],['missingStrategy','ENUM']] },
+
+        { id:'AuditCase', label:'审核任务', layer:'E', kind:'class', desc:'针对一张报销单创建的审核运行上下文，汇总风险、规则执行和人工复核状态。', fields:[['caseNo','STRING'],['status','ENUM'],['riskScore','FLOAT'],['startedAt','DATETIME']] },
+        { id:'RuleExecution', label:'规则执行', layer:'E', kind:'class', desc:'规则版本在特定事实快照上的一次执行记录，保存结果、耗时和模型版本。', fields:[['executionNo','STRING'],['result','ENUM'],['inputSnapshotHash','STRING'],['durationMs','INTEGER'],['engineVersion','STRING']] },
+        { id:'Finding', label:'审核发现', layer:'E', kind:'class', desc:'规则执行产生的阻断、异常、警告、提示或通过结果。', fields:[['findingType','ENUM'],['title','STRING'],['impactAmountMinor','INTEGER · 分'],['confidence','FLOAT'],['status','ENUM']] },
+        { id:'Evidence', label:'审核证据', layer:'E', kind:'class', desc:'支撑或反驳审核发现的事实快照、文档片段或外部核验结果。', fields:[['evidenceId','STRING'],['evidenceType','ENUM'],['contentRef','STRING'],['contentHash','STRING']] },
+        { id:'HumanReviewTask', label:'人工复核任务', layer:'E', kind:'class', desc:'证据不足、规则冲突、高风险或低置信时创建的人工待办。', fields:[['reviewTaskId','STRING'],['reason','STRING'],['assigneeRole','STRING'],['priority','ENUM'],['status','ENUM']] },
+        { id:'AuditDecision', label:'审核决策', layer:'E', kind:'class', desc:'人工或系统作出的放行、驳回、退回补充、扣减、转审或豁免决定。', fields:[['decisionType','ENUM'],['decisionReason','STRING'],['approvedAmountMinor','INTEGER · 分'],['decidedBy','STRING'],['decidedAt','DATETIME']] },
+        { id:'AuditTrace', label:'审计追踪', layer:'E', kind:'class', desc:'规则版本、事实快照、模型、人工动作与时间的不可变记录。', fields:[['eventType','STRING'],['eventAt','DATETIME'],['actor','STRING'],['payloadHash','STRING']] },
+        { id:'ConversationSession', label:'智能体会话', layer:'E', kind:'class', desc:'用户与费审智能体围绕规则、单据或审核结果的会话上下文。', fields:[['sessionId','STRING'],['userId','STRING'],['startedAt','DATETIME'],['status','ENUM']] },
+        { id:'ConversationAnswer', label:'智能体回答', layer:'E', kind:'class', desc:'由规则、制度、业务事实和引用共同生成的可追溯回答。', fields:[['answerText','STRING'],['answerType','ENUM'],['groundedFlag','BOOLEAN'],['confidence','FLOAT']] }
+      ];
+
+      const schemaLinks = [
+        ['ExpenseReport','ExpenseLine','CONTAINS_LINE','包含明细'],
+        ['ExpenseReport','Employee','SUBMITTED_BY','由员工提交'],
+        ['ExpenseReport','HospitalityApplication','LINKS_APPLICATION','关联申请'],
+        ['ExpenseReport','EvidenceBundle','HAS_EVIDENCE_BUNDLE','具有证据包'],
+        ['ExpenseReport','ApprovalFlow','FOLLOWS_FLOW','执行流程'],
+        ['ExpenseReport','LegalEntity','FOR_LEGAL_ENTITY','属于法人'],
+        ['ExpenseReport','PaymentRequest','GENERATES_PAYMENT','生成付款'],
+        ['ExpenseLine','ExpenseCategory','CLASSIFIED_AS','归类为'],
+        ['ExpenseLine','Invoice','SUPPORTED_BY','票据支持'],
+        ['ExpenseLine','Attachment','SUPPORTED_BY','附件支持'],
+        ['EvidenceBundle','Invoice','CONTAINS_INVOICE','包含发票'],
+        ['EvidenceBundle','Attachment','CONTAINS_ATTACHMENT','包含附件'],
+        ['PaymentRequest','Payee','PAY_TO','支付给'],
+        ['RuleSet','AuditRuleDefinition','CONTAINS_RULE','包含规则'],
+        ['AuditRuleDefinition','ExpenseCategory','APPLIES_TO','适用于'],
+        ['AuditRuleDefinition','ThresholdStandard','USES_STANDARD','使用标准'],
+        ['AuditRuleDefinition','PolicyClause','DERIVED_FROM','来源于'],
+        ['AuditRuleDefinition','EvidenceRequirement','REQUIRES_EVIDENCE','要求证据'],
+        ['PolicyDocument','PolicyClause','CONTAINS_CLAUSE','包含条款'],
+        ['EvidenceRequirement','EvidenceBundle','FULFILLED_BY','由证据满足'],
+        ['AuditCase','ExpenseReport','EVALUATES_REPORT','评估单据'],
+        ['AuditCase','RuleExecution','HAS_EXECUTION','包含执行'],
+        ['RuleExecution','AuditRuleDefinition','EXECUTES','执行规则'],
+        ['RuleExecution','ExpenseLine','EVALUATES_LINE','评估明细'],
+        ['RuleExecution','Finding','PRODUCES','产生发现'],
+        ['Finding','Evidence','SUPPORTED_BY','证据支持'],
+        ['Finding','HumanReviewTask','CREATES_REVIEW','创建复核'],
+        ['HumanReviewTask','AuditDecision','PRODUCES_DECISION','产生决策'],
+        ['AuditDecision','Finding','RESOLVES','解决发现'],
+        ['AuditTrace','AuditCase','RECORDS_CASE','记录任务'],
+        ['ConversationSession','ConversationAnswer','HAS_ANSWER','产生回答'],
+        ['ConversationAnswer','AuditRuleDefinition','CITES_RULE','引用规则'],
+        ['ConversationAnswer','PolicyClause','CITES_CLAUSE','引用条款'],
+        ['ConversationAnswer','Finding','EXPLAINS_FINDING','解释发现']
+      ].map((d, i) => ({ id:`SL-${i+1}`, source:d[0], target:d[1], type:d[2], label:d[3], scope:'schema' }));
+
+      const caseNodes = [
+        { id:'ER-001', label:'报销单 BX-001', shortLabel:'报销单', type:'ExpenseReport', layer:'D', kind:'instance', desc:'员工提交的业务招待费报销单，当前状态为财务审核中。', fields:[['reportNo','BX-001'],['expenseTotalMinor','60000'],['currencyCode','CNY'],['status','IN_REVIEW']] },
+        { id:'EL-001', label:'业务招待费 600元', shortLabel:'费用明细', type:'ExpenseLine', layer:'D', kind:'instance', desc:'客户业务招待晚餐费用明细，是本次限额规则的直接评估对象。', fields:[['claimedAmountMinor','60000'],['currencyCode','CNY'],['description','客户业务招待晚餐'],['status','PENDING_AUDIT']] },
+        { id:'CAT-HOSPITALITY', label:'业务招待费', shortLabel:'业务招待费', type:'ExpenseCategory', layer:'D', kind:'instance', desc:'费用明细归属的二级业务分类。', fields:[['categoryCode','BUSINESS_HOSPITALITY'],['categoryLevel','2'],['status','ACTIVE']] },
+        { id:'EMP-001', label:'员工 E-001', shortLabel:'报销员工', type:'Employee', layer:'D', kind:'instance', desc:'本次费用报销的提交人。演示数据不包含真实个人敏感信息。', fields:[['employeeNo','E-001'],['employmentStatus','ACTIVE']] },
+        { id:'APP-001', label:'招待申请 ZD-001', shortLabel:'招待申请', type:'HospitalityApplication', layer:'D', kind:'instance', desc:'已审批通过的业务招待事前申请。', fields:[['applicationNo','ZD-001'],['expectedDate','2026-08-01'],['approvedAmountMinor','50000'],['status','APPROVED']] },
+        { id:'INV-001', label:'餐饮发票 600元', shortLabel:'餐饮发票', type:'Invoice', layer:'D', kind:'instance', desc:'与费用明细关联的餐饮发票，演示中假设已验真。', fields:[['invoiceNo','INV-001'],['invoiceType','VAT_NORMAL'],['totalAmountMinor','60000'],['authenticityStatus','VALID']] },
+
+        { id:'RULE-001', label:'业务招待费限额审核', shortLabel:'限额规则', type:'AuditRuleDefinition', layer:'R', kind:'instance', desc:'判断业务招待费申请金额是否小于或等于当前有效标准。', fields:[['ruleCode','HC-EXP-HOSPITALITY-001'],['version','1.0.0'],['operator','LESS_THAN_OR_EQUAL'],['status','ACTIVE']] },
+        { id:'STD-001', label:'公司标准 500元', shortLabel:'公司标准', type:'ThresholdStandard', layer:'R', kind:'instance', desc:'业务招待费单次限额标准。', fields:[['standardCode','BUSINESS_HOSPITALITY_LIMIT'],['limitAmountMinor','50000'],['unit','元/次'],['effectiveFrom','2026-01-01']] },
+        { id:'POLICY-001', label:'费用报销管理制度', shortLabel:'制度条款', type:'PolicyClause', layer:'R', kind:'instance', desc:'本次规则所引用的受控制度条款。', fields:[['clauseNo','6.3.1'],['version','V2.0'],['status','EFFECTIVE']] },
+
+        { id:'CASE-001', label:'审核任务 CASE-001', shortLabel:'审核任务', type:'AuditCase', layer:'E', kind:'instance', desc:'围绕报销单 BX-001 创建的审核运行上下文。', fields:[['caseNo','CASE-001'],['status','PENDING_REVIEW'],['riskScore','80']] },
+        { id:'EXEC-001', label:'规则执行：不通过', shortLabel:'规则执行', type:'RuleExecution', layer:'E', kind:'instance', desc:'限额规则在当前费用明细事实快照上的执行记录。', fields:[['result','FAILED'],['engineVersion','rule-engine-1.0'],['durationMs','12'],['confidence','1.0']] },
+        { id:'FINDING-001', label:'超标 100元', shortLabel:'超标100元', type:'Finding', layer:'E', kind:'instance', desc:'申请600元、公司标准500元，因此产生超标100元的审核发现。', fields:[['findingType','OVER_LIMIT'],['impactAmountMinor','10000'],['riskLevel','MEDIUM'],['status','PENDING_REVIEW']] },
+        { id:'REVIEW-001', label:'等待财务人工复核', shortLabel:'人工复核', type:'HumanReviewTask', layer:'E', kind:'instance', desc:'弱管控规则命中后创建的人工复核任务。', fields:[['reason','业务招待费超标准'],['assigneeRole','财务初审'],['priority','MEDIUM'],['status','PENDING']] },
+        { id:'DECISION-001', label:'建议扣减 100元', shortLabel:'审核决策', type:'AuditDecision', layer:'E', kind:'instance', desc:'演示建议：核定500元、扣减100元；最终结果需要财务审核员确认。', fields:[['decisionType','DEDUCT'],['approvedAmountMinor','50000'],['status','DRAFT']] }
+      ];
+
+      const caseLinks = [
+        ['ER-001','EL-001','CONTAINS_LINE','包含明细'],
+        ['ER-001','EMP-001','SUBMITTED_BY','由员工提交'],
+        ['ER-001','APP-001','LINKS_APPLICATION','关联申请'],
+        ['EL-001','CAT-HOSPITALITY','CLASSIFIED_AS','归类为'],
+        ['EL-001','INV-001','SUPPORTED_BY','发票支持'],
+        ['RULE-001','CAT-HOSPITALITY','APPLIES_TO','适用于'],
+        ['RULE-001','STD-001','USES_STANDARD','使用标准'],
+        ['RULE-001','POLICY-001','DERIVED_FROM','依据条款'],
+        ['CASE-001','ER-001','EVALUATES_REPORT','评估单据'],
+        ['CASE-001','EXEC-001','HAS_EXECUTION','包含执行'],
+        ['EXEC-001','RULE-001','EXECUTES','执行规则'],
+        ['EXEC-001','EL-001','EVALUATES_LINE','评估明细'],
+        ['EXEC-001','FINDING-001','PRODUCES','产生发现'],
+        ['FINDING-001','REVIEW-001','CREATES_REVIEW','创建复核'],
+        ['REVIEW-001','DECISION-001','PRODUCES_DECISION','产生决策'],
+        ['DECISION-001','FINDING-001','RESOLVES','解决发现']
+      ].map((d, i) => ({ id:`CL-${i+1}`, source:d[0], target:d[1], type:d[2], label:d[3], scope:'case' }));
+
+      const combinedBridgeLinks = [
+        ['ER-001','ExpenseReport','INSTANCE_OF','实例属于'],['EL-001','ExpenseLine','INSTANCE_OF','实例属于'],
+        ['CAT-HOSPITALITY','ExpenseCategory','INSTANCE_OF','实例属于'],['RULE-001','AuditRuleDefinition','INSTANCE_OF','实例属于'],
+        ['STD-001','ThresholdStandard','INSTANCE_OF','实例属于'],['EXEC-001','RuleExecution','INSTANCE_OF','实例属于'],
+        ['FINDING-001','Finding','INSTANCE_OF','实例属于'],['DECISION-001','AuditDecision','INSTANCE_OF','实例属于']
+      ].map((d, i) => ({ id:`BL-${i+1}`, source:d[0], target:d[1], type:d[2], label:d[3], scope:'bridge' }));
+
+      const state = {
+        view: 'schema',
+        layers: new Set(['D','R','E']),
+        transform: { x:0, y:0, k:1 },
+        selectedId: null,
+        selectedLinkId: null,
+        search: '',
+        hotNodes: new Set(),
+        hotLinks: new Set(),
+        nodes: [],
+        links: [],
+        frame: 0,
+        draggingNode: null,
+        panning: null
+      };
+
+      const svg = document.getElementById('kg-graph');
+      const viewport = document.getElementById('kg-viewport');
+      const bandsG = document.getElementById('kg-bands');
+      const linksG = document.getElementById('kg-links');
+      const linkLabelsG = document.getElementById('kg-link-labels');
+      const nodesG = document.getElementById('kg-nodes');
+      const searchInput = document.getElementById('kg-search');
+      const statusText = document.getElementById('kg-status-text');
+      const databaseStatus = document.getElementById('kg-db-status');
+      const ns = 'http://www.w3.org/2000/svg';
+
+      async function loadDatabaseGraph({ render = true } = {}) {
+        if (location.protocol === 'file:') {
+          databaseStatus.textContent = '离线演示数据';
+          databaseStatus.className = 'kg-db-status is-offline';
+          databaseStatus.title = '通过本地服务打开后可连接 Neo4j';
+          if (render) renderGraph();
+          return false;
+        }
+        databaseStatus.textContent = 'Neo4j 同步中';
+        databaseStatus.className = 'kg-db-status';
+        try {
+          const [graphResponse, healthResponse] = await Promise.all([
+            fetch('/api/graph', { cache:'no-store' }),
+            fetch('/api/health', { cache:'no-store' })
+          ]);
+          if (!graphResponse.ok || !healthResponse.ok) throw new Error(`接口响应异常（${graphResponse.status}/${healthResponse.status}）`);
+          const [data, health] = await Promise.all([graphResponse.json(), healthResponse.json()]);
+          schemaNodes.splice(0, schemaNodes.length, ...(data.schemaNodes || []));
+          schemaLinks.splice(0, schemaLinks.length, ...(data.schemaLinks || []));
+          caseNodes.splice(0, caseNodes.length, ...(data.caseNodes || []));
+          caseLinks.splice(0, caseLinks.length, ...(data.caseLinks || []));
+          combinedBridgeLinks.splice(0, combinedBridgeLinks.length, ...(data.bridgeLinks || []));
+          databaseStatus.textContent = `Neo4j ${health.neo4jVersion || ''} · 已连接`;
+          databaseStatus.className = 'kg-db-status is-online';
+          databaseStatus.title = `${health.nodes} 个节点 · ${health.relationships} 条关系 · 数据库 ${health.database}`;
+          if (render) renderGraph();
+          return true;
+        } catch (error) {
+          databaseStatus.textContent = '数据库连接失败';
+          databaseStatus.className = 'kg-db-status is-offline';
+          databaseStatus.title = error.message;
+          if (render) renderGraph();
+          return false;
+        }
+      }
+
+      function cloneData() {
+        let nodes = [];
+        let links = [];
+        if (state.view === 'schema') {
+          nodes = schemaNodes;
+          links = schemaLinks;
+        } else if (state.view === 'case') {
+          nodes = caseNodes;
+          links = caseLinks;
+        } else {
+          nodes = [...schemaNodes, ...caseNodes];
+          links = [...schemaLinks, ...caseLinks, ...combinedBridgeLinks];
+        }
+        const allowed = new Set(nodes.filter(n => state.layers.has(n.layer)).map(n => n.id));
+        state.nodes = nodes.filter(n => allowed.has(n.id)).map(n => ({...n, fields:n.fields.map(f=>[...f])}));
+        const byId = new Map(state.nodes.map(n => [n.id,n]));
+        state.links = links.filter(l => allowed.has(l.source) && allowed.has(l.target)).map(l => ({...l, sourceNode:byId.get(l.source), targetNode:byId.get(l.target)}));
+      }
+
+      function size() {
+        const rect = svg.getBoundingClientRect();
+        return { width: Math.max(520, rect.width), height: Math.max(620, rect.height) };
+      }
+
+      function seedPositions() {
+        const {width, height} = size();
+        const targets = { D:width*.20, R:width*.51, E:width*.81 };
+        const groups = {D:[],R:[],E:[]};
+        state.nodes.forEach(n => groups[n.layer].push(n));
+        for (const layer of ['D','R','E']) {
+          const list = groups[layer];
+          list.forEach((n, i) => {
+            const cols = state.view === 'combined' ? Math.max(2, Math.ceil(Math.sqrt(list.length))) : Math.max(2, Math.ceil(list.length / 5));
+            const col = i % cols;
+            const row = Math.floor(i / cols);
+            const colSpread = state.view === 'combined' ? 120 : 86;
+            n.x = targets[layer] + (col - (cols-1)/2) * colSpread + ((i*17)%13-6);
+            n.y = 115 + row * 102 + ((i*23)%17-8);
+            if (n.y > height - 80) n.y = 100 + (i % 5) * ((height-170)/4);
+            n.vx = 0; n.vy = 0; n.fixed = false;
+          });
+        }
+      }
+
+      function element(tag, attrs={}) {
+        const el = document.createElementNS(ns, tag);
+        for (const [key, value] of Object.entries(attrs)) el.setAttribute(key, value);
+        return el;
+      }
+
+      function renderBands() {
+        bandsG.replaceChildren();
+        if (state.view === 'case') return;
+        const {width, height} = size();
+        const bands = [
+          {layer:'D', x:18, width:width*.34-26},
+          {layer:'R', x:width*.34+4, width:width*.31-16},
+          {layer:'E', x:width*.65+4, width:width*.35-22}
+        ];
+        bands.filter(b => state.layers.has(b.layer)).forEach(b => {
+          const info = layerInfo[b.layer];
+          const rect = element('rect',{x:b.x,y:72,width:Math.max(100,b.width),height:height-96,fill:info.soft,class:'kg-layer-band'});
+          const label = element('text',{x:b.x+b.width/2,y:93,fill:info.color,class:'kg-band-label'});
+          label.textContent = `${b.layer} · ${info.name}`;
+          bandsG.append(rect,label);
+        });
+      }
+
+      function renderGraph() {
+        cloneData();
+        seedPositions();
+        state.selectedId = null;
+        state.selectedLinkId = null;
+        renderBands();
+        linksG.replaceChildren(); linkLabelsG.replaceChildren(); nodesG.replaceChildren();
+        document.getElementById('kg-empty').style.display = state.nodes.length ? 'none' : 'grid';
+
+        state.links.forEach(link => {
+          const path = element('path',{class:'kg-link','data-link-id':link.id});
+          const hit = element('path',{class:'kg-link-hit','data-link-id':link.id});
+          const label = element('text',{class:'kg-link-label','data-link-id':link.id});
+          label.textContent = link.label;
+          hit.addEventListener('click', e => { e.stopPropagation(); selectLink(link.id); });
+          linksG.append(path,hit); linkLabelsG.append(label);
+        });
+
+        state.nodes.forEach(node => {
+          const group = element('g',{class:`kg-node ${node.kind === 'instance' ? 'instance' : ''}`,'data-node-id':node.id,tabindex:'0',role:'button','aria-label':`${node.label}，${layerInfo[node.layer].name}`});
+          const info = layerInfo[node.layer];
+          const ring = element('circle',{r:22,fill:node.kind === 'instance' ? '#fff9eb' : info.soft,stroke:info.color,class:'kg-node-ring'});
+          const core = element('circle',{r:14,fill:info.color});
+          const code = element('text',{y:4,class:'kg-node-code'}); code.textContent = node.layer;
+          const label = element('text',{y:38,class:'kg-node-label'}); label.textContent = node.shortLabel || node.label;
+          const type = element('text',{y:51,class:'kg-node-type'}); type.textContent = node.kind === 'instance' ? node.type : node.id;
+          group.append(ring,core,code,label,type);
+          group.addEventListener('pointerdown', e => startNodeDrag(e,node));
+          group.addEventListener('click', e => { e.stopPropagation(); selectNode(node.id); });
+          group.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') selectNode(node.id); });
+          group.addEventListener('mouseenter', () => hoverNode(node.id));
+          group.addEventListener('mouseleave', clearHover);
+          nodesG.append(group);
+        });
+
+        applySearchAndSelection();
+        state.frame = 0;
+        cancelAnimationFrame(state.raf);
+        simulate();
+        fitGraph(false);
+        updateCounts();
+        updateDetail(null);
+      }
+
+      function simulate() {
+        const {width, height} = size();
+        const targetX = {D:width*.20,R:width*.51,E:width*.81};
+        const nodes = state.nodes;
+        const links = state.links;
+        const alpha = Math.max(.025, .62 * Math.pow(.986, state.frame));
+
+        for (let i=0;i<nodes.length;i++) {
+          for (let j=i+1;j<nodes.length;j++) {
+            const a=nodes[i], b=nodes[j];
+            let dx=a.x-b.x, dy=a.y-b.y;
+            let dist2=dx*dx+dy*dy;
+            if (dist2 < 1) { dx=.1; dy=.1; dist2=.02; }
+            const minDist = state.view === 'combined' ? 62 : 72;
+            if (dist2 < minDist*minDist*3.2) {
+              const force = (minDist*minDist/dist2)*.48*alpha;
+              const dist=Math.sqrt(dist2);
+              const fx=dx/dist*force, fy=dy/dist*force;
+              if(!a.fixed){a.vx+=fx;a.vy+=fy;} if(!b.fixed){b.vx-=fx;b.vy-=fy;}
+            }
+          }
+        }
+
+        links.forEach(l => {
+          const a=l.sourceNode,b=l.targetNode;
+          const dx=b.x-a.x,dy=b.y-a.y,dist=Math.max(1,Math.hypot(dx,dy));
+          const desired = l.scope === 'bridge' ? 72 : state.view === 'combined' ? 100 : 115;
+          const force=(dist-desired)*.012*alpha;
+          const fx=dx/dist*force,fy=dy/dist*force;
+          if(!a.fixed){a.vx+=fx;a.vy+=fy;} if(!b.fixed){b.vx-=fx;b.vy-=fy;}
+        });
+
+        nodes.forEach(n => {
+          if (!n.fixed) {
+            n.vx += (targetX[n.layer]-n.x)*.0022*alpha;
+            n.vy += (height*.49-n.y)*.0011*alpha;
+            n.vx *= .84; n.vy *= .84;
+            n.x += n.vx; n.y += n.vy;
+            n.x=Math.max(40,Math.min(width-40,n.x)); n.y=Math.max(86,Math.min(height-58,n.y));
+          }
+        });
+        updatePositions();
+        state.frame++;
+        if (state.frame < 360 || alpha > .026) state.raf=requestAnimationFrame(simulate);
+      }
+
+      function updatePositions() {
+        state.links.forEach(link => {
+          const a=link.sourceNode,b=link.targetNode;
+          const dx=b.x-a.x,dy=b.y-a.y,dist=Math.max(1,Math.hypot(dx,dy));
+          const sx=a.x+dx/dist*23, sy=a.y+dy/dist*23;
+          const tx=b.x-dx/dist*27, ty=b.y-dy/dist*27;
+          const d=`M${sx},${sy} L${tx},${ty}`;
+          linksG.querySelectorAll(`[data-link-id="${link.id}"]`).forEach(el=>el.setAttribute('d',d));
+          const label=linkLabelsG.querySelector(`[data-link-id="${link.id}"]`);
+          if(label){label.setAttribute('x',(sx+tx)/2);label.setAttribute('y',(sy+ty)/2-4);}
+        });
+        state.nodes.forEach(node => {
+          const group=nodesG.querySelector(`[data-node-id="${node.id}"]`);
+          if(group)group.setAttribute('transform',`translate(${node.x},${node.y})`);
+        });
+      }
+
+      function updateTransform() { viewport.setAttribute('transform',`translate(${state.transform.x},${state.transform.y}) scale(${state.transform.k})`); }
+
+      function fitGraph(animated=true) {
+        if(!state.nodes.length) return;
+        const {width,height}=size();
+        const xs=state.nodes.map(n=>n.x),ys=state.nodes.map(n=>n.y);
+        const minX=Math.min(...xs)-60,maxX=Math.max(...xs)+60,minY=Math.min(...ys)-60,maxY=Math.max(...ys)+70;
+        const k=Math.min(1.15,Math.max(.35,Math.min((width-34)/(maxX-minX),(height-30)/(maxY-minY))));
+        state.transform={x:width/2-(minX+maxX)/2*k,y:height/2-(minY+maxY)/2*k,k};
+        if(animated) viewport.style.transition='transform .25s ease';
+        updateTransform();
+        if(animated)setTimeout(()=>viewport.style.transition='',260);
+      }
+
+      function zoomBy(factor) {
+        const {width,height}=size();
+        const old=state.transform.k;
+        const next=Math.max(.32,Math.min(2.5,old*factor));
+        const wx=(width/2-state.transform.x)/old,wy=(height/2-state.transform.y)/old;
+        state.transform.x=width/2-wx*next;state.transform.y=height/2-wy*next;state.transform.k=next;updateTransform();
+      }
+
+      function worldPoint(event) {
+        const rect=svg.getBoundingClientRect();
+        return {x:(event.clientX-rect.left-state.transform.x)/state.transform.k,y:(event.clientY-rect.top-state.transform.y)/state.transform.k};
+      }
+
+      function startNodeDrag(event,node) {
+        event.stopPropagation();
+        svg.setPointerCapture(event.pointerId);
+        state.draggingNode={node,pointerId:event.pointerId};
+        node.fixed=true; node.vx=0; node.vy=0;
+      }
+
+      function handlePointerMove(event) {
+        if(state.draggingNode){const p=worldPoint(event);state.draggingNode.node.x=p.x;state.draggingNode.node.y=p.y;updatePositions();return;}
+        if(state.panning){state.transform.x=state.panning.x+(event.clientX-state.panning.clientX);state.transform.y=state.panning.y+(event.clientY-state.panning.clientY);updateTransform();}
+      }
+
+      function handlePointerUp(event) {
+        if(state.draggingNode && state.draggingNode.pointerId===event.pointerId) state.draggingNode=null;
+        state.panning=null;
+        try{svg.releasePointerCapture(event.pointerId);}catch(_e){}
+      }
+
+      function adjacency(id) {
+        const neighborIds=new Set([id]);
+        const linkIds=new Set();
+        state.links.forEach(l=>{if(l.source===id||l.target===id){neighborIds.add(l.source);neighborIds.add(l.target);linkIds.add(l.id);}});
+        return {neighborIds,linkIds};
+      }
+
+      function hoverNode(id) {
+        if(state.search||state.selectedId)return;
+        const {neighborIds,linkIds}=adjacency(id);
+        nodesG.querySelectorAll('.kg-node').forEach(el=>el.classList.toggle('is-dim',!neighborIds.has(el.dataset.nodeId)));
+        linksG.querySelectorAll('.kg-link').forEach(el=>el.classList.toggle('is-dim',!linkIds.has(el.dataset.linkId)));
+        linkLabelsG.querySelectorAll('.kg-link-label').forEach(el=>el.classList.toggle('is-dim',!linkIds.has(el.dataset.linkId)));
+      }
+
+      function clearHover(){ if(!state.search&&!state.selectedId)applySearchAndSelection(); }
+
+      function selectNode(id) {
+        state.selectedId=id;state.selectedLinkId=null;applySearchAndSelection();
+        const node=state.nodes.find(n=>n.id===id);updateDetail(node);
+      }
+
+      function selectLink(id) {
+        state.selectedLinkId=id;state.selectedId=null;applySearchAndSelection();
+        const link=state.links.find(l=>l.id===id);updateLinkDetail(link);
+      }
+
+      function applySearchAndSelection() {
+        const q=state.search.trim().toLowerCase();
+        const matches=new Set();
+        if(q) state.nodes.forEach(n=>{const hay=`${n.id} ${n.label} ${n.type||''} ${n.desc} ${n.fields.flat().join(' ')}`.toLowerCase();if(hay.includes(q))matches.add(n.id);});
+        let focusNodes=null,focusLinks=null;
+        if(state.selectedId){const a=adjacency(state.selectedId);focusNodes=a.neighborIds;focusLinks=a.linkIds;}
+        else if(q){focusNodes=new Set(matches);focusLinks=new Set();state.links.forEach(l=>{if(matches.has(l.source)||matches.has(l.target)){focusNodes.add(l.source);focusNodes.add(l.target);focusLinks.add(l.id);}});}
+
+        nodesG.querySelectorAll('.kg-node').forEach(el=>{
+          const id=el.dataset.nodeId;
+          el.classList.toggle('is-selected',id===state.selectedId);
+          el.classList.toggle('is-match',matches.has(id));
+          el.classList.toggle('is-hot',state.hotNodes.has(id));
+          el.classList.toggle('is-dim',!!focusNodes&&!focusNodes.has(id));
+        });
+        linksG.querySelectorAll('.kg-link').forEach(el=>{
+          const id=el.dataset.linkId;
+          el.classList.toggle('is-hot',state.hotLinks.has(id));
+          el.classList.toggle('is-dim',!!focusLinks&&!focusLinks.has(id));
+        });
+        linkLabelsG.querySelectorAll('.kg-link-label').forEach(el=>el.classList.toggle('is-dim',!!focusLinks&&!focusLinks.has(el.dataset.linkId)));
+        statusText.textContent=q?`找到 ${matches.size} 个匹配对象`:`${state.nodes.length} 个对象 · ${state.links.length} 条关系`;
+      }
+
+      function escapeHtml(value){return String(value??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+
+      function updateDetail(node) {
+        const empty=document.getElementById('kg-detail-empty'),body=document.getElementById('kg-detail-body');
+        if(!node){empty.style.display='block';body.style.display='none';document.getElementById('kg-detail-kind').textContent='未选择';return;}
+        empty.style.display='none';body.style.display='block';
+        const info=layerInfo[node.layer];
+        document.getElementById('kg-detail-kind').textContent=node.kind==='instance'?'业务实例':'本体对象';
+        const chip=document.getElementById('kg-detail-chip');chip.textContent=node.layer;chip.style.background=info.color;
+        document.getElementById('kg-detail-category').textContent=`${info.name} · ${node.kind==='instance'?'Individual':'Class'}`;
+        document.getElementById('kg-detail-title').textContent=node.label;
+        document.getElementById('kg-detail-id').textContent=node.kind==='instance'?`${node.id} · INSTANCE_OF ${node.type}`:node.id;
+        document.getElementById('kg-detail-desc').textContent=node.desc;
+        document.getElementById('kg-detail-fields').innerHTML=node.fields.map(f=>`<div class="kg-prop"><code>${escapeHtml(f[0])}</code><span>${escapeHtml(f[1])}</span></div>`).join('');
+        const adjacent=state.links.filter(l=>l.source===node.id||l.target===node.id);
+        document.getElementById('kg-detail-links').innerHTML=adjacent.length?adjacent.map(l=>{
+          const outgoing=l.source===node.id;const other=state.nodes.find(n=>n.id===(outgoing?l.target:l.source));
+          return `<div class="kg-connection"><b>${outgoing?'→':'←'} ${escapeHtml(l.label)} · ${escapeHtml(other?.label||'')}</b><span>${escapeHtml(l.type)}</span></div>`;
+        }).join(''):'<div style="color:#7b889a;font-size:12px;">当前视图无相邻关系</div>';
+      }
+
+      function updateLinkDetail(link) {
+        if(!link)return;
+        const empty=document.getElementById('kg-detail-empty'),body=document.getElementById('kg-detail-body');
+        empty.style.display='none';body.style.display='block';
+        document.getElementById('kg-detail-kind').textContent='语义关系';
+        const chip=document.getElementById('kg-detail-chip');chip.textContent='REL';chip.style.background='#7a889b';
+        document.getElementById('kg-detail-category').textContent='Object Property / Relationship';
+        document.getElementById('kg-detail-title').textContent=link.label;
+        document.getElementById('kg-detail-id').textContent=link.type;
+        document.getElementById('kg-detail-desc').textContent=`${link.sourceNode.label} 通过“${link.label}”指向 ${link.targetNode.label}。`;
+        document.getElementById('kg-detail-fields').innerHTML=`<div class="kg-prop"><code>source</code><span>${escapeHtml(link.source)}</span></div><div class="kg-prop"><code>target</code><span>${escapeHtml(link.target)}</span></div><div class="kg-prop"><code>scope</code><span>${escapeHtml(link.scope)}</span></div>`;
+        document.getElementById('kg-detail-links').innerHTML='<div style="color:#7b889a;font-size:12px;">关系字段可扩展 relationId、tenantId、validFrom、validTo、sourceSystem 和 confidence。</div>';
+      }
+
+      function updateCounts(){document.getElementById('kg-total-nodes').textContent=state.nodes.length;document.getElementById('kg-total-links').textContent=state.links.length;}
+
+      function setView(view) {
+        state.view=view;
+        document.querySelectorAll('.kg-mode').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.view===view)));
+        const titles={schema:['费用审核本体模式图','Class、Object Property 与关键字段'],case:['业务招待费 600/500 审核实例','从报销事实到规则执行、审核发现和人工决策'],combined:['本体与实例联合视图','虚线圆为业务实例，INSTANCE_OF 连接到本体对象']};
+        document.getElementById('kg-view-title').textContent=titles[view][0];document.getElementById('kg-view-subtitle').textContent=titles[view][1];
+        renderGraph();
+        if(view==='case'&&document.getElementById('kg-audit-result').classList.contains('fail'))applySearchAndSelection();
+      }
+
+      async function runAudit() {
+        const claim=Number(document.getElementById('kg-claim-amount').value);
+        const standard=Number(document.getElementById('kg-standard-amount').value);
+        const result=document.getElementById('kg-audit-result');
+        if(!Number.isFinite(claim)||!Number.isFinite(standard)||claim<0||standard<0){result.className='kg-result fail';result.textContent='请输入有效且不小于0的金额。';return;}
+        const runButton=document.getElementById('kg-run-audit');
+        if(location.protocol!=='file:'){
+          runButton.disabled=true;runButton.textContent='正在执行并写入 Neo4j…';
+          result.className='kg-result';result.textContent='正在读取规则、标准和业务事实…';
+          try{
+            const response=await fetch('/api/audit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({claimAmount:claim,standardAmount:standard})});
+            const data=await response.json();
+            if(!response.ok)throw new Error(data.error||`HTTP ${response.status}`);
+            await loadDatabaseGraph({render:false});
+            const pass=Boolean(data.passed),diff=Number(data.excessAmount||0),approved=Number(data.approvedAmount||0);
+            result.className=`kg-result ${pass?'pass':'fail'}`;
+            result.innerHTML=pass?`<b>审核通过 · 已写入图数据库</b><br>申请 ${claim.toFixed(2)} 元 ≤ 标准 ${standard.toFixed(2)} 元。`:`<b>命中限额规则 · 已写入图数据库</b><br>超标 ${diff.toFixed(2)} 元，建议核定 ${approved.toFixed(2)} 元并提交人工复核。`;
+            const hotTypes=new Set(['ExpenseReport','ExpenseLine','ExpenseCategory','AuditRuleDefinition','ThresholdStandard','AuditCase','RuleExecution','Finding',...(pass?[]:['HumanReviewTask','AuditDecision'])]);
+            state.hotNodes=new Set(caseNodes.filter(node=>hotTypes.has(node.type)).map(node=>node.id));
+            state.hotLinks=new Set(caseLinks.filter(link=>state.hotNodes.has(link.source)&&state.hotNodes.has(link.target)).map(link=>link.id));
+            setView('case');
+            const findingId=caseNodes.find(node=>node.type==='Finding')?.id;
+            setTimeout(()=>{if(findingId)selectNode(findingId);fitGraph(true);},80);
+          }catch(error){
+            result.className='kg-result fail';
+            result.innerHTML=`<b>数据库写入失败</b><br>${escapeHtml(error.message)}。请确认 Neo4j 和本地网站服务均已启动。`;
+          }finally{
+            runButton.disabled=false;runButton.textContent='运行费用审核';
+          }
+          return;
+        }
+        const diff=Math.max(0,Math.round((claim-standard)*100)/100);const pass=claim<=standard;
+        const line=caseNodes.find(n=>n.id==='EL-001');line.label=`业务招待费 ${claim.toFixed(2)}元`;line.fields.find(f=>f[0]==='claimedAmountMinor')[1]=String(Math.round(claim*100));
+        const std=caseNodes.find(n=>n.id==='STD-001');std.label=`公司标准 ${standard.toFixed(2)}元`;std.fields.find(f=>f[0]==='limitAmountMinor')[1]=String(Math.round(standard*100));
+        const exec=caseNodes.find(n=>n.id==='EXEC-001');exec.label=`规则执行：${pass?'通过':'不通过'}`;exec.fields.find(f=>f[0]==='result')[1]=pass?'PASSED':'FAILED';
+        const finding=caseNodes.find(n=>n.id==='FINDING-001');finding.label=pass?'未发现超标':`超标 ${diff.toFixed(2)}元`;finding.shortLabel=pass?'审核通过':`超标${diff.toFixed(0)}元`;finding.desc=pass?`申请${claim.toFixed(2)}元未超过标准${standard.toFixed(2)}元，限额规则审核通过。`:`申请${claim.toFixed(2)}元、公司标准${standard.toFixed(2)}元，因此产生超标${diff.toFixed(2)}元的审核发现。`;finding.fields.find(f=>f[0]==='impactAmountMinor')[1]=String(Math.round(diff*100));finding.fields.find(f=>f[0]==='status')[1]=pass?'CLOSED':'PENDING_REVIEW';
+        const review=caseNodes.find(n=>n.id==='REVIEW-001');review.label=pass?'无需人工复核':'等待财务人工复核';review.shortLabel=pass?'无需复核':'人工复核';review.fields.find(f=>f[0]==='status')[1]=pass?'SKIPPED':'PENDING';
+        const decision=caseNodes.find(n=>n.id==='DECISION-001');decision.label=pass?`建议放行 ${claim.toFixed(2)}元`:`建议扣减 ${diff.toFixed(2)}元`;decision.shortLabel=pass?'建议放行':'审核决策';decision.fields.find(f=>f[0]==='decisionType')[1]=pass?'PASS':'DEDUCT';decision.fields.find(f=>f[0]==='approvedAmountMinor')[1]=String(Math.round(Math.min(claim,standard)*100));
+        result.className=`kg-result ${pass?'pass':'fail'}`;result.innerHTML=pass?`<b>审核通过</b><br>申请 ${claim.toFixed(2)} 元 ≤ 标准 ${standard.toFixed(2)} 元。`:`<b>命中限额规则</b><br>超标 ${diff.toFixed(2)} 元，建议核定 ${standard.toFixed(2)} 元并提交人工复核。`;
+        state.hotNodes=new Set(['ER-001','EL-001','CAT-HOSPITALITY','RULE-001','STD-001','CASE-001','EXEC-001','FINDING-001',...(pass?[]:['REVIEW-001','DECISION-001'])]);
+        state.hotLinks=new Set(caseLinks.filter(l=>state.hotNodes.has(l.source)&&state.hotNodes.has(l.target)).map(l=>l.id));
+        setView('case');
+        setTimeout(()=>{selectNode('FINDING-001');fitGraph(true);},80);
+      }
+
+      document.querySelectorAll('.kg-mode').forEach(b=>b.addEventListener('click',()=>setView(b.dataset.view)));
+      document.querySelectorAll('.kg-layer-option input').forEach(input=>input.addEventListener('change',()=>{input.checked?state.layers.add(input.value):state.layers.delete(input.value);renderGraph();}));
+      searchInput.addEventListener('input',()=>{state.search=searchInput.value;applySearchAndSelection();});
+      document.getElementById('kg-search-clear').addEventListener('click',()=>{searchInput.value='';state.search='';applySearchAndSelection();searchInput.focus();});
+      document.getElementById('kg-run-audit').addEventListener('click',runAudit);
+      document.getElementById('kg-fit').addEventListener('click',()=>fitGraph(true));
+      document.getElementById('kg-reset').addEventListener('click',renderGraph);
+      document.getElementById('kg-zoom-in').addEventListener('click',()=>zoomBy(1.22));
+      document.getElementById('kg-zoom-out').addEventListener('click',()=>zoomBy(.82));
+      document.getElementById('kg-release').addEventListener('click',()=>{state.nodes.forEach(n=>n.fixed=false);state.frame=0;simulate();});
+      svg.addEventListener('wheel',event=>{event.preventDefault();const rect=svg.getBoundingClientRect();const px=event.clientX-rect.left,py=event.clientY-rect.top,old=state.transform.k,next=Math.max(.32,Math.min(2.5,old*(event.deltaY<0?1.1:.9))),wx=(px-state.transform.x)/old,wy=(py-state.transform.y)/old;state.transform.x=px-wx*next;state.transform.y=py-wy*next;state.transform.k=next;updateTransform();},{passive:false});
+      svg.addEventListener('pointerdown',event=>{if(event.target.classList.contains('kg-hit-plane')){svg.setPointerCapture(event.pointerId);state.panning={pointerId:event.pointerId,clientX:event.clientX,clientY:event.clientY,x:state.transform.x,y:state.transform.y};state.selectedId=null;state.selectedLinkId=null;applySearchAndSelection();updateDetail(null);}});
+      svg.addEventListener('pointermove',handlePointerMove);svg.addEventListener('pointerup',handlePointerUp);svg.addEventListener('pointercancel',handlePointerUp);
+      window.addEventListener('resize',()=>{clearTimeout(state.resizeTimer);state.resizeTimer=setTimeout(renderGraph,180);});
+
+      loadDatabaseGraph();
+    })();
+  </script>
+</body>
+</html>
